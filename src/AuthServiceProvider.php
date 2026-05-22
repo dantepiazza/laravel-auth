@@ -1,0 +1,48 @@
+<?php
+
+namespace DantePiazza\LaravelAuth;
+
+use Illuminate\Support\ServiceProvider;
+use DantePiazza\LaravelAuth\Http\Middleware\VerifyEmail;
+
+class AuthServiceProvider extends ServiceProvider
+{
+    public function register(): void {}
+
+    public function boot(): void
+    {
+        $this->loadMigrationsFrom(__DIR__ . '/../stubs/database/migrations');
+        $this->loadViewsFrom(__DIR__ . '/../resources/views', 'laravel-auth');
+        $this->mergeConfigFrom(__DIR__ . '/../config/laravel-auth.php', 'laravel-auth');
+
+        if (empty(config('laravel-auth.account_types'))) {
+            throw new \RuntimeException(
+                '[laravel-auth] Debés publicar y configurar la config: php artisan vendor:publish --tag=laravel-auth-config'
+            );
+        }
+
+        // Registrar alias del middleware para que el usuario pueda usarlo manualmente si lo necesita
+        $this->app['router']->aliasMiddleware('auth.verify-email', VerifyEmail::class);
+
+        // Las rutas se cargan después de registrar el alias
+        $this->loadRoutesFrom(__DIR__ . '/../routes/auth.php');
+
+        if ($this->app->runningInConsole()) {
+            $this->publishes([
+                __DIR__ . '/../stubs/database/migrations/' => database_path('migrations'),
+            ], 'laravel-auth-migrations');
+
+            $this->publishes([
+                __DIR__ . '/../config/laravel-auth.php' => config_path('laravel-auth.php'),
+            ], 'laravel-auth-config');
+
+            $this->publishes([
+                __DIR__ . '/../routes/auth.php' => base_path('/routes/auth.php'),
+            ], 'laravel-auth-routes');
+
+            $this->publishes([
+                __DIR__ . '/../resources/views' => resource_path('views/vendor/laravel-auth'),
+            ], 'laravel-auth-views');
+        }
+    }
+}
