@@ -19,15 +19,25 @@ use DantePiazza\LaravelAuth\Http\Requests\Auth\ResendVerificationCodeRequest;
 
 class AuthController
 {
-    protected AuthService $service;
+    private ?AuthService $resolvedService = null;
 
-    public function __construct(Request $request, AuthService $service, private ApiResponse $api)
+    public function __construct(
+        private AuthService $authService,
+        private ApiResponse $api
+    ) {}
+
+	public function __get($key)
     {
-        $this->middleware(function ($request, $next) use ($service) {
-            $this->service = $service->modelSet($request->route('type'));
-    
-            return $next($request);
-        });
+        if ($key === 'service') {
+            if ($this->resolvedService === null) {
+                $type = request()->route('type');
+                $this->resolvedService = $this->authService->modelSet($type);
+            }
+            return $this->resolvedService;
+        }
+
+        trigger_error("Property {$key} does not exist", E_USER_NOTICE);
+        return null;
     }
     
     public function login(LoginRequest $request): JsonResponse
