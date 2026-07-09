@@ -6,7 +6,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Foundation\Http\FormRequest;
 
-use App\Rules\ValidVerificationCode;
+use DantePiazza\LaravelAuth\Rules\ValidVerificationCode;
 
 class RestorePasswordRequest extends FormRequest
 {

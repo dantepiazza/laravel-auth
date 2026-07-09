@@ -77,14 +77,14 @@ class AuthService
         $refreshToken = $model->createRefreshToken($accessToken->accessToken->id);
 
         $cookie = cookie(
-            $this->config['name'].'_refresh_token', 
-            $refreshToken, 
-            43200, 
-            '/', 
+            $this->config['name'].'_refresh_token',
+            $refreshToken,
+            config('laravel-auth.refresh_token_expiration', 43200),
+            '/',
             config('session.domain'),
             config('session.secure'),
             true,
-            false, 
+            false,
             config('session.same_site', 'none')
         );
 
@@ -165,6 +165,27 @@ class AuthService
 
         $model->password = Hash::make($newPassword);
         $model->save();
+    }
+
+    public function checkIdentity(string $identity): bool
+    {
+        return ! $this->modelClass::where($this->config['identity'], $identity)->exists();
+    }
+
+    public function verifyEmail(string $identity, string $code): void
+    {
+        $model = $this->modelClass::where($this->config['identity'], $identity)->firstOrFail();
+
+        $model->verifyEmail($code);
+    }
+
+    public function resendVerificationCode(string $identity): void
+    {
+        $model = $this->modelClass::where($this->config['identity'], $identity)->firstOrFail();
+
+        if (method_exists($model, 'sendEmailVerificationCode')) {
+            $model->sendEmailVerificationCode();
+        }
     }
 
     public function register(array $validated): array

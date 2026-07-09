@@ -12,8 +12,15 @@ class VerificationCodeEmail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public $code;
-    public $type;
+    private const VIEWS = [
+        'password.recover' => 'password-recover',
+        'email.verify'     => 'email-verification',
+    ];
+
+    private const SUBJECTS = [
+        'password.recover' => 'Restablecer contraseña',
+        'email.verify'     => 'Verificá tu correo electrónico',
+    ];
 
     public function __construct(
         public readonly int $code,
@@ -23,20 +30,17 @@ class VerificationCodeEmail extends Mailable
 
     public function envelope(): Envelope
     {
-        $subjects = [
-            'password.recover'   => 'Restablecer contraseña',
-            'email.verification' => 'Verificá tu correo electrónico',
-        ];
-
         return new Envelope(
-            subject: ($subjects[$this->type] ?? 'Código de verificación') . " [{$this->code}]",
+            subject: (self::SUBJECTS[$this->type] ?? 'Código de verificación') . " [{$this->code}]",
         );
     }
 
     public function content(): Content
     {
+        $view = self::VIEWS[$this->type] ?? $this->type;
+
         return new Content(
-            view: 'emails.'.$this->type,
+            view: 'laravel-auth::emails.' . $view,
         );
     }
 }

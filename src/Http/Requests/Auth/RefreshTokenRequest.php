@@ -22,7 +22,7 @@ class RefreshTokenRequest extends FormRequest
 
         $type = $this->route('type');
         
-        $cookieName = config("auth.account_types.{$type}.name", 'refresh_token') . '_refresh_token';
+        $cookieName = config("laravel-auth.account_types.{$type}.name", 'refresh_token') . '_refresh_token';
 
         $this->merge([
             'refresh_token' => $this->cookie($cookieName),
