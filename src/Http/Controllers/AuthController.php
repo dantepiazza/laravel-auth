@@ -44,11 +44,12 @@ class AuthController
     {
         $data = $this->service->login($request->identity, $request->password);
 
-        return $this->api->success([
+        return $this->api->success(array_filter([
                 'access_token'  => $data['access_token'],
                 'refresh_token' => $data['refresh_token'],
-                'model'         => $data['resource']
-            ], 'Sesión iniciada correctamente.')
+                'model'         => $data['resource'],
+                'rbac'          => $data['rbac'] ?? null,
+            ], fn ($value) => $value !== null), 'Sesión iniciada correctamente.')
             ->withCookie($data['cookie'])
             ->response();
     }
@@ -58,18 +59,19 @@ class AuthController
         $data = $this->service->logout();
 
         return $this->api->success('Sesión cerrada correctamente.')
-            ->withoutCookie($data['cookie'])
+            ->withCookie($data['cookie'])
             ->response();
     }
 
     public function current(Request $request): JsonResponse
     {
-        $model = $this->service->current();
+        $data = $this->service->current();
 
-        return $this->api->success([
+        return $this->api->success(array_filter([
                 'authenticated' => true,
-                'model' => $model['resource']
-            ], 'Sesión activa.')
+                'model'         => $data['resource'],
+                'rbac'          => $data['rbac'] ?? null,
+            ], fn ($value) => $value !== null), 'Sesión activa.')
             ->response();
     }
 
@@ -91,11 +93,12 @@ class AuthController
         $loginAfterRegister = config('laravel-auth.register.login_after_register', true);
 
         $response = $loginAfterRegister
-            ? $this->api->created([
+            ? $this->api->created(array_filter([
                 'access_token'  => $data['access_token'],
                 'refresh_token' => $data['refresh_token'],
                 'model'         => $data['resource'],
-            ], 'Cuenta creada correctamente.')
+                'rbac'          => $data['rbac'] ?? null,
+            ], fn ($value) => $value !== null), 'Cuenta creada correctamente.')
             : $this->api->created([
                 'model' => $data['resource'],
             ], 'Cuenta creada correctamente.');
@@ -152,5 +155,26 @@ class AuthController
         $this->service->resendVerificationCode($request->validated('identity'));
 
         return $this->api->success(null, 'Código de verificación enviado.')->response();
+    }
+
+    public function listSessions(Request $request): JsonResponse
+    {
+        $sessions = $this->service->listSessions();
+
+        return $this->api->records($sessions)->message('Sesiones activas.')->response();
+    }
+
+    public function revokeSession(Request $request): JsonResponse
+    {
+        $this->service->revokeSession((int) $request->route('id'));
+
+        return $this->api->success(message: 'Sesión revocada correctamente.')->response();
+    }
+
+    public function revokeAllSessions(Request $request): JsonResponse
+    {
+        $this->service->revokeAllSessions();
+
+        return $this->api->success(message: 'Todas las sesiones fueron revocadas.')->response();
     }
 }

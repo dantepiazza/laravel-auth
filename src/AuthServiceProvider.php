@@ -4,6 +4,7 @@ namespace DantePiazza\LaravelAuth;
 
 use Illuminate\Support\ServiceProvider;
 use DantePiazza\LaravelAuth\Http\Middleware\VerifyEmail;
+use DantePiazza\LaravelAuth\Http\Middleware\EnsureSsoPermission;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -23,6 +24,9 @@ class AuthServiceProvider extends ServiceProvider
 
         // Registrar alias del middleware para que el usuario pueda usarlo manualmente si lo necesita
         $this->app['router']->aliasMiddleware('auth.verify-email', VerifyEmail::class);
+
+        // Middleware opt-in para RBAC de SSO (Fase 2) — el consumidor lo aplica donde lo necesite
+        $this->app['router']->aliasMiddleware('sso.permission', EnsureSsoPermission::class);
 
         // Las rutas se cargan después de registrar el alias
         $this->loadRoutesFrom(__DIR__ . '/../routes/auth.php');

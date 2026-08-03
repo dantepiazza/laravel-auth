@@ -62,4 +62,44 @@ trait HasRefreshTokens
 
         return $newToken;
     }
+
+    /**
+     * Refresh tokens activos (no expirados) del usuario, para paneles de administración.
+     */
+    public function listActiveRefreshTokens()
+    {
+        return $this->refreshTokens()
+            ->where('expires_at', '>', now())
+            ->get(['id', 'access_token_id', 'expires_at', 'created_at']);
+    }
+
+    /**
+     * Revoca una sesión (refresh token) puntual, siempre que pertenezca a este modelo.
+     */
+    public function revokeRefreshToken(int $refreshTokenId): bool
+    {
+        $refreshToken = $this->refreshTokens()->whereKey($refreshTokenId)->first();
+
+        if (!$refreshToken) {
+            return false;
+        }
+
+        $this->tokens()->where('id', $refreshToken->access_token_id)->delete();
+        $refreshToken->delete();
+
+        return true;
+    }
+
+    /**
+     * Revoca todos los refresh tokens (y sus access tokens asociados) del usuario.
+     */
+    public function revokeAllRefreshTokens(): int
+    {
+        $count = $this->refreshTokens()->count();
+
+        $this->tokens()->delete();
+        $this->refreshTokens()->delete();
+
+        return $count;
+    }
 }

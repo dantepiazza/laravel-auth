@@ -52,11 +52,14 @@ class TestCase extends Orchestra
 
         $app['config']->set('laravel-auth.account_types', [
             'users' => [
-                'name'     => 'user',
-                'guard'    => 'sanctum',
-                'class'    => TestUser::class,
-                'identity' => 'email',
-                'resource' => TestUserResource::class,
+                'name'            => 'user',
+                'guard'           => 'sanctum',
+                'class'           => TestUser::class,
+                'identity'        => 'email',
+                'resource'        => TestUserResource::class,
+                'register_fields' => [
+                    'name' => ['required', 'string'],
+                ],
             ],
         ]);
 

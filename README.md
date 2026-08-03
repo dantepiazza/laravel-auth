@@ -69,6 +69,8 @@ return [
 | `resource` | API Resource class to wrap the model in responses |
 | `register_fields` | Extra validation rules merged into the registration request |
 
+> **Register validation:** only `password` and whatever you list in `register_fields` gets validated on `POST .../register` — any other field sent by the client is silently dropped before reaching the model. If your model has other `NOT NULL` columns (e.g. `name`), declare them in `register_fields` or the insert will fail. The `identity` column (e.g. `email`) gets a `required` + `unique` rule automatically unless you override it yourself in `register_fields`.
+
 ### 2. Add the traits to your model
 
 ```php
@@ -382,6 +384,84 @@ protected $listen = [
 
 ---
 
+## SSO (optional, opt-in)
+
+Single Sign-On across microservices/SPAs sharing the same root domain (via wildcard cookie) or across different root domains (via an encrypted handshake). **Disabled by default** — nothing changes for existing installs until `AUTH_SSO_MODE` is set.
+
+```env
+AUTH_SSO_MODE=              # provider | consumer | empty (off)
+AUTH_SSO_DEFAULT_TYPE=users # account_types key used to resolve login/cookie routes
+AUTH_SSO_SECRET=            # dedicated secret for the cross-domain handshake, NOT your APP_KEY
+AUTH_SSO_HANDSHAKE_TTL=60   # seconds, handshake token lifetime
+AUTH_SSO_PROVIDER_URL=      # consumer side: base URL of the Provider
+AUTH_SSO_ALLOWED_CONSUMERS= # provider side: comma-separated root domains allowlist
+AUTH_SSO_RBAC_ENABLED=false
+```
+
+### SSO Provider
+
+The app that issues tokens centrally. To let the refresh-token cookie work across a wildcard domain, set Laravel/Sanctum's own config (not package config):
+
+```env
+SESSION_DOMAIN=.yourdomain.com
+SESSION_SECURE_COOKIE=true
+SESSION_SAME_SITE=lax
+SANCTUM_STATEFUL_DOMAINS=panel.yourdomain.com,ms1.yourdomain.com
+```
+
+Make sure clients send `withCredentials: true` and the app returns `Access-Control-Allow-Credentials: true` so the HttpOnly cookie travels across subdomains.
+
+### SSO Consumer
+
+A microservice/SPA that trusts the Provider instead of managing its own credentials:
+
+- **Blade/backend consumer**: if there's no active `access_token` in memory/session, call `POST {provider}/v1/{type}/auth/refresh` — the shared HttpOnly cookie lets the Provider return a new token without asking for credentials again.
+- **SPA consumer**: configure the HTTP client with `withCredentials: true`; on app init, call `POST {provider}/v1/{type}/auth/refresh` then `GET {provider}/v1/{type}/auth/current` before rendering; attach `Authorization: Bearer <access_token>` to subsequent requests.
+
+### RBAC (opt-in payload extension)
+
+Set `AUTH_SSO_RBAC_ENABLED=true` and implement `getSsoRoles()`/`getSsoPermissions()` on your model to have `login()`/`current()`/`register()` include an additional `rbac` key in the response. If the model doesn't implement these methods, or RBAC is disabled, no extra key is added — existing consumers see no difference.
+
+Use the opt-in `sso.permission` middleware to gate internal routes:
+
+```php
+Route::middleware(['auth:sanctum', 'sso.permission:manage-infrastructure'])->group(...);
+```
+
+### Session management (device list / revocation)
+
+Available regardless of SSO mode, useful for admin panels:
+
+| Route | Description |
+|-------|-------------|
+| `GET v1/{type}/auth/sessions` | Lists the authenticated user's active refresh tokens |
+| `DELETE v1/{type}/auth/sessions/{id}` | Revokes one session |
+| `DELETE v1/{type}/auth/sessions` | Revokes all sessions |
+
+Logging out now clears the refresh-token cookie using the same `domain`/`path`/`secure`/`same_site` it was issued with, so it's actually removed by the browser even under a wildcard domain.
+
+### Cross-domain handshake (root domain ≠ Provider's domain)
+
+For a root domain that isn't a subdomain of the Provider (so the wildcard cookie can't reach it), the package supports a redirect-based handshake using an **encrypted token in the query string**, sealed with the dedicated `AUTH_SSO_SECRET` (via a private `Illuminate\Encryption\Encrypter` instance, independent from `APP_KEY`).
+
+Flow: `GET v1/sso/redirect` (consumer) → redirect to the Provider's login page with an encrypted `sso_handshake` token → after normal login, `GET v1/sso/handshake` (provider, authenticated) validates the consumer against `AUTH_SSO_ALLOWED_CONSUMERS`, issues fresh tokens, and redirects back → the consumer's own `laravel-auth.sso.callback` route decrypts the response and sets its own local refresh-token cookie.
+
+The Provider never assumes a path or prefix (e.g. `api/`) for the consumer's callback: the consumer resolves its own `route('laravel-auth.sso.callback', absolute: true)` and sends that full URL inside the encrypted payload. The Provider validates that the callback URL's host actually matches the allowlisted consumer domain before redirecting, so a tampered/foreign callback host is rejected.
+
+These routes are only registered when `AUTH_SSO_MODE` is `provider` or `consumer`.
+
+**Conscious design tradeoffs (see `.agents/ROADMAP.md` for the full rationale):**
+- A single shared secret is used across all enabled consumers, not a per-domain secret — simpler, intended for one team managing several projects/domains.
+- The handshake token travels in the query string (GET), mitigated by short TTL and encryption — no plaintext data is exposed without the secret.
+- There's no "used handshake token" registry (no single-use guarantee beyond the short TTL).
+
+**Backlog (out of scope for this feature):**
+- [ ] Move from a single shared secret to a per-consumer secret (table-backed) if the number of consumers grows or includes untrusted third parties.
+- [ ] Track consumed handshake tokens for real single-use guarantees.
+- [ ] Configure the Provider to avoid logging the full query string on the handshake endpoints.
+
+---
+
 ## Migrations
 
 Three tables are created automatically:
@@ -406,6 +486,10 @@ php artisan vendor:publish --tag=laravel-auth-migrations
 composer install
 vendor/bin/pest
 ```
+
+SSO-specific coverage lives in `tests/SsoHandshakeTest.php` (encryptor + cross-domain handshake service), `tests/SsoRbacTest.php` (opt-in `rbac` payload), and `tests/SsoSessionsTest.php` (session listing/revocation and the logout cookie domain fix). They run against a dedicated `SsoTestCase` that boots with `AUTH_SSO_MODE=consumer`, since the handshake routes are only registered at boot time when that config is set.
+
+The full suite is green (56/56).
 
 ---
 

@@ -12,6 +12,10 @@ class VerifyEmail
 {
     public function handle(Request $request, Closure $next): Response
     {
+        if (!config('laravel-auth.email_verification.blocking')) {
+            return $next($request);
+        }
+
         $user = Auth::user();
 
         if ($user && is_null($user->email_verified_at)) {

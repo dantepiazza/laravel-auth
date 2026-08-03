@@ -59,11 +59,52 @@ return [
     */
     'account_types' => [
         /*'users' => [
-            'name'     => 'user', 
+            'name'     => 'user',
             'guard'    => 'sanctum',
-            'identity' => 'email', 
+            'identity' => 'email',
             'class'    => App\\Models\\User:class,
             'resource' => App\\Resources\\UserResource:class,
         ]*/
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | SSO (opcional)
+    |--------------------------------------------------------------------------
+    | Funcionalidad de Single Sign-On entre microservicios/SPAs. Desactivada
+    | por defecto: si "mode" queda en null no se registra ninguna ruta ni
+    | middleware nuevo, y el payload de login()/current() no cambia.
+    |
+    | mode: null | 'provider' | 'consumer'
+    |   - provider: emite tokens de forma centralizada.
+    |   - consumer: redirige/valida contra el provider.
+    |
+    | default_type: account_type usado para resolver route('laravel-auth.login',
+    |   ['type' => ...]) cuando el paquete necesita construir una URL de login
+    |   sin depender de un dominio o path hardcodeado.
+    |
+    | secret: secret dedicado para el handshake cross-domain (Fase 4). No debe
+    |   reutilizar APP_KEY: permite rotarlo de forma independiente y evita
+    |   depender de la app key de cada consumidor.
+    |
+    | allowed_consumers: lista de dominios raíz permitidos para el handshake,
+    |   solo se usa del lado "provider".
+    */
+    'sso' => [
+        'mode' => env('AUTH_SSO_MODE'),
+
+        'default_type' => env('AUTH_SSO_DEFAULT_TYPE', 'users'),
+
+        'secret' => env('AUTH_SSO_SECRET'),
+
+        'handshake_ttl' => env('AUTH_SSO_HANDSHAKE_TTL', 60),
+
+        'provider_url' => env('AUTH_SSO_PROVIDER_URL'),
+
+        'allowed_consumers' => array_filter(explode(',', env('AUTH_SSO_ALLOWED_CONSUMERS', ''))),
+
+        'rbac' => [
+            'enabled' => env('AUTH_SSO_RBAC_ENABLED', false),
+        ],
     ],
 ];

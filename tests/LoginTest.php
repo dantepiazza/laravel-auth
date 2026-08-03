@@ -70,7 +70,7 @@ describe('login', function () {
             'password' => 'password123',
         ]);
 
-        $response->assertCookieIsNotExpired('user_refresh_token');
+        $response->assertCookieNotExpired('user_refresh_token');
     });
 
     it('falla con tipo de cuenta inválido', function () {

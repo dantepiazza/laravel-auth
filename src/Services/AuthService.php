@@ -3,6 +3,7 @@
 namespace DantePiazza\LaravelAuth\Services;
 
 use Illuminate\Support\Facades\Hash;
+use Symfony\Component\HttpFoundation\Cookie;
 use DantePiazza\LaravelAuth\Models\PersonalRefreshToken;
 use DantePiazza\LaravelApiResponse\Exceptions\ResponseException;
 use DantePiazza\LaravelAuth\Events\UserRegistered;
@@ -76,10 +77,35 @@ class AuthService
 
         $refreshToken = $model->createRefreshToken($accessToken->accessToken->id);
 
-        $cookie = cookie(
+        return [
+            'access_token'  => $accessToken->plainTextToken,
+            'refresh_token' => $refreshToken,
+            'model'         => $model,
+            'resource'      => new $this -> config['resource']($model),
+            'cookie'        => $this->makeRefreshCookie($refreshToken),
+            ...$this->withRbacPayload($model),
+        ];
+    }
+
+    public function logout(): array
+    {
+        $this->resolve()->removeCurrentSession();
+
+        return [
+            'cookie' => $this->makeRefreshCookie('', -1),
+        ];
+    }
+
+    /**
+     * Crea la cookie del refresh token, respetando session.domain/secure/same_site
+     * para que funcione tanto en instalaciones normales como con cookie wildcard (SSO).
+     */
+    public function makeRefreshCookie(string $refreshToken, ?int $minutes = null): Cookie
+    {
+        return cookie(
             $this->config['name'].'_refresh_token',
             $refreshToken,
-            config('laravel-auth.refresh_token_expiration', 43200),
+            $minutes ?? config('laravel-auth.refresh_token_expiration', 43200),
             '/',
             config('session.domain'),
             config('session.secure'),
@@ -87,23 +113,30 @@ class AuthService
             false,
             config('session.same_site', 'none')
         );
-
-        return [
-            'access_token'  => $accessToken->plainTextToken,
-            'refresh_token' => $refreshToken,
-            'model'         => $model,
-            'resource'      => new $this -> config['resource']($model),
-            'cookie'        => $cookie
-        ];
     }
 
-    public function logout(): array
+    /**
+     * Extiende de forma aditiva el payload con roles/permisos, solo si el
+     * modo SSO RBAC está habilitado y el modelo implementa las convenciones.
+     * Si no aplica, no agrega ninguna clave (evita nulls/vacíos de más).
+     */
+    protected function withRbacPayload($model): array
     {
-        $this->resolve()->removeCurrentSession(); 
+        if (!config('laravel-auth.sso.rbac.enabled') || !$model) {
+            return [];
+        }
 
-        return [
-            'cookie' => $this->config['name'].'_refresh_token', 
-        ];
+        $rbac = [];
+
+        if (method_exists($model, 'getSsoRoles')) {
+            $rbac['roles'] = $model->getSsoRoles();
+        }
+
+        if (method_exists($model, 'getSsoPermissions')) {
+            $rbac['permissions'] = $model->getSsoPermissions();
+        }
+
+        return $rbac ? ['rbac' => $rbac] : [];
     }
 
     public function refresh(string $token): string
@@ -132,7 +165,34 @@ class AuthService
         return [
             'model'    => $model,
             'resource' => new $this -> config['resource']($model),
+            ...$this->withRbacPayload($model),
         ];
+    }
+
+    /**
+     * Lista los refresh tokens (sesiones) activos del usuario autenticado.
+     */
+    public function listSessions()
+    {
+        return $this->resolve()->listActiveRefreshTokens();
+    }
+
+    /**
+     * Revoca una sesión (refresh token) puntual del usuario autenticado.
+     */
+    public function revokeSession(int $refreshTokenId): void
+    {
+        if (!$this->resolve()->revokeRefreshToken($refreshTokenId)) {
+            throw new ResponseException('auth_session_not_found', 'La sesión indicada no existe.', 404);
+        }
+    }
+
+    /**
+     * Revoca todas las sesiones (refresh tokens) del usuario autenticado.
+     */
+    public function revokeAllSessions(): void
+    {
+        $this->resolve()->revokeAllRefreshTokens();
     }
 
 	public function sendRecoverCode(string $identity)
@@ -182,6 +242,10 @@ class AuthService
     public function resendVerificationCode(string $identity): void
     {
         $model = $this->modelClass::where($this->config['identity'], $identity)->firstOrFail();
+
+        if (method_exists($model, 'hasVerifiedEmail') ? $model->hasVerifiedEmail() : !empty($model->email_verified_at)) {
+            throw new ResponseException('auth_email_already_verified', 'El email ya se encuentra verificado.', 422);
+        }
 
         if (method_exists($model, 'sendEmailVerificationCode')) {
             $model->sendEmailVerificationCode();
@@ -251,24 +315,13 @@ class AuthService
 
         $refreshToken = $model->createRefreshToken($accessToken->accessToken->id);
 
-        $cookie = cookie(
-            $this->config['name'] . '_refresh_token',
-            $refreshToken,
-            config('laravel-auth.refresh_token_expiration', 43200),
-            '/',
-            config('session.domain'),
-            config('session.secure'),
-            true,
-            false,
-            config('session.same_site', 'none')
-        );
-
         return [
             'access_token'  => $accessToken->plainTextToken,
             'refresh_token' => $refreshToken,
             'model'         => $model,
             'resource'      => new $this->config['resource']($model),
-            'cookie'        => $cookie,
+            'cookie'        => $this->makeRefreshCookie($refreshToken),
+            ...$this->withRbacPayload($model),
         ];
     }
 }
