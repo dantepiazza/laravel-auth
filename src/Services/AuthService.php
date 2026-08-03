@@ -7,6 +7,7 @@ use Symfony\Component\HttpFoundation\Cookie;
 use DantePiazza\LaravelAuth\Models\PersonalRefreshToken;
 use DantePiazza\LaravelApiResponse\Exceptions\ResponseException;
 use DantePiazza\LaravelAuth\Events\UserRegistered;
+use DantePiazza\LaravelAuth\Support\SsoHandshakeEncryptor;
 
 class AuthService
 {
@@ -99,18 +100,36 @@ class AuthService
     /**
      * Crea la cookie del refresh token, respetando session.domain/secure/same_site
      * para que funcione tanto en instalaciones normales como con cookie wildcard (SSO).
+     *
+     * Modo SSO activo: el valor de la cookie se cifra con AUTH_SSO_SECRET (no
+     * APP_KEY) usando SsoHandshakeEncryptor, y la cookie se marca `raw` para
+     * que Laravel NO le aplique además su propio cifrado de EncryptCookies
+     * (atado a APP_KEY). Es necesario porque un microservicio consumer tiene
+     * una APP_KEY distinta a la del Provider y jamás podría desencriptar una
+     * cookie cifrada con la APP_KEY del Provider — pero sí puede desencriptar
+     * con el mismo AUTH_SSO_SECRET compartido (ver EnsureSsoSession de
+     * clousis/microservices, o el consumer que corresponda).
+     *
+     * Modo SSO desactivado (default): comportamiento idéntico al de antes de
+     * esta feature — cookie de valor plano, cifrada por el EncryptCookies
+     * estándar de la app (APP_KEY). Cero cambio de comportamiento.
      */
     public function makeRefreshCookie(string $refreshToken, ?int $minutes = null): Cookie
     {
+        $ssoMode = config('laravel-auth.sso.mode');
+        $value   = ($ssoMode && $refreshToken !== '')
+            ? (new SsoHandshakeEncryptor())->encrypt(['refresh_token' => $refreshToken])
+            : $refreshToken;
+
         return cookie(
             $this->config['name'].'_refresh_token',
-            $refreshToken,
+            $value,
             $minutes ?? config('laravel-auth.refresh_token_expiration', 43200),
             '/',
             config('session.domain'),
             config('session.secure'),
             true,
-            false,
+            (bool) $ssoMode,
             config('session.same_site', 'none')
         );
     }
