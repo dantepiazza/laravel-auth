@@ -1,6 +1,6 @@
 # Roadmap: Evoluci�n SSO & Cookie Wildcard
 
-> **Estado (2026-08-02): implementado y desplegable.** Las 4 fases completas, suite completa en verde (56/56, incluyendo los hallazgos preexistentes no relacionados a SSO que se resolvieron de paso — ver `REPORTS.md`). Cobertura de tests en `tests/SsoHandshakeTest.php`, `tests/SsoRbacTest.php`, `tests/SsoSessionsTest.php`. Documentaci�n de uso en el `README.md` del paquete, secci�n "SSO (optional, opt-in)".
+> **Estado (2026-08-04): implementado y desplegable.** Las 4 fases completas, suite completa en verde (61/61 — 56 de la implementación original + 5 agregados desde, incluyendo los hallazgos preexistentes no relacionados a SSO que se resolvieron de paso — ver `REPORTS.md`). Cobertura de tests en `tests/SsoHandshakeTest.php`, `tests/SsoRbacTest.php`, `tests/SsoSessionsTest.php`. Documentación de uso en el `README.md` del paquete, sección "SSO (optional, opt-in)". El único pendiente de Fase 4 (default roto de `provider_login_route`) quedó resuelto — ver Backlog.
 
 ## Objetivo
 
@@ -101,7 +101,7 @@ Se debe documentar el uso t�cnico del paquete tanto para el lado del Gateway c
 - [ ] Registro de tokens de handshake consumidos (single-use real v�a storage), si el TTL corto deja de ser mitigante suficiente.
 - [ ] Configurar el Gateway para no loguear el query string completo en los logs de acceso HTTP.
 
-- [ ] Confirmar que la ruta de login del Gateway est� efectivamente registrada con `name('login')` (o el nombre que use el proyecto real), para poder resolverla v�a `route('login')` en vez de un path fijo.
+- [x] **Resuelto (2026-08-04):** `provider_login_route` ahora resuelve `'login'` por defecto (antes caía a `'laravel-auth.login'`, la ruta API del propio paquete — un redirect de navegador ahí daba 405, el bug real detrás de "Handshake cross-domain roto"). Había dos defaults distintos para lo mismo (uno en `config/laravel-auth.php`, otro hardcodeado como segundo argumento de `config()` dentro de `SsoHandshakeService::buildProviderRedirectUrl()`) — alineados ambos a `'login'`. Cada host sigue pudiendo overridear con `AUTH_SSO_PROVIDER_LOGIN_ROUTE` si su ruta de login no se llama `login` (ver README, sección "Cross-domain handshake"). Tests: `tests/SsoHandshakeTest.php` cubre el default nuevo explícitamente; `tests/SsoTestCase.php` registra una ruta `login` de prueba para poder resolverlo. Suite completa: 61/61 en verde.
 
 ## Pendiente de definir antes de ejecutar
 

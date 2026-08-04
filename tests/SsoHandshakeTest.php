@@ -61,6 +61,17 @@ describe('SsoHandshakeService', function () {
         expect($url)->toContain('sso_handshake=');
     });
 
+    it('por defecto resuelve la ruta nombrada "login" (convención estándar de Laravel), no la ruta API del paquete', function () {
+        $service = app(SsoHandshakeService::class);
+
+        $expectedPath = route('login', ['type' => config('laravel-auth.sso.default_type')], false);
+
+        $url = $service->buildProviderRedirectUrl('consumer.example.test', '/dashboard');
+
+        expect($url)->toContain(ltrim($expectedPath, '/'));
+        expect($url)->not->toContain('laravel-auth');
+    });
+
     it('usa provider_login_route en vez de la ruta API cuando el host la configura', function () {
         config(['laravel-auth.sso.provider_login_route' => 'laravel-auth.sso.callback']);
 

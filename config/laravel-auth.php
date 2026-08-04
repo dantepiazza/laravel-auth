@@ -84,12 +84,14 @@ return [
     |
     | provider_login_route: nombre de ruta HTML (GET, con formulario) que el
     |   Provider expone para el login humano — la que ve el usuario en el
-    |   navegador durante el handshake cross-domain (Fase 4). Es un dato del
-    |   host app, no del paquete: el paquete solo trae 'laravel-auth.login',
-    |   que es la ruta API (POST, JSON) usada por AuthController — redirigir
-    |   un navegador ahí devuelve 405. Si el host no define esta clave, el
-    |   handshake cae de vuelta a 'laravel-auth.login' (roto para uso real,
-    |   pero no rompe la resolución de la URL en apps que no usan handshake).
+    |   navegador durante el handshake cross-domain (Fase 4). Por defecto
+    |   resuelve 'login', la convención estándar de Laravel (la misma que usa
+    |   Auth::routes()/Breeze/Fortify y a la que redirige el middleware 'auth'
+    |   cuando no hay sesión) — así funciona out-of-the-box en cualquier app
+    |   Laravel típica sin configurar nada. Si el host nombra su ruta de login
+    |   distinto (ej. un grupo con prefijo de nombre, como 'auth.login.form'),
+    |   hay que setear AUTH_SSO_PROVIDER_LOGIN_ROUTE con el nombre real —
+    |   nunca asumir 'login' a ciegas sin confirmar que esa ruta existe.
     |
     | secret: secret dedicado para el handshake cross-domain (Fase 4). No debe
     |   reutilizar APP_KEY: permite rotarlo de forma independiente y evita
@@ -103,7 +105,7 @@ return [
 
         'default_type' => env('AUTH_SSO_DEFAULT_TYPE', 'users'),
 
-        'provider_login_route' => env('AUTH_SSO_PROVIDER_LOGIN_ROUTE', 'laravel-auth.login'),
+        'provider_login_route' => env('AUTH_SSO_PROVIDER_LOGIN_ROUTE', 'login'),
 
         'secret' => env('AUTH_SSO_SECRET'),
 

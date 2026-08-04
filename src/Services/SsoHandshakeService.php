@@ -42,7 +42,11 @@ class SsoHandshakeService
             'callback' => route('laravel-auth.sso.callback', absolute: true),
         ]);
 
-        $loginRoute = config('laravel-auth.sso.provider_login_route', 'laravel-auth.login');
+        // El default real vive en config/laravel-auth.php ('login', la
+        // convención estándar de Laravel) — este segundo argumento de
+        // config() es solo un resguardo por si la key no llegó a mergearse
+        // por algún motivo, nunca debe ser un default distinto al del config.
+        $loginRoute = config('laravel-auth.sso.provider_login_route', 'login');
         $loginPath = route($loginRoute, ['type' => config('laravel-auth.sso.default_type')], false);
 
         return $providerUrl.'/'.ltrim($loginPath, '/').'?sso_handshake='.urlencode($token);

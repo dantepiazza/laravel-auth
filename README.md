@@ -394,6 +394,7 @@ AUTH_SSO_DEFAULT_TYPE=users # account_types key used to resolve login/cookie rou
 AUTH_SSO_SECRET=            # dedicated secret for the cross-domain handshake, NOT your APP_KEY
 AUTH_SSO_HANDSHAKE_TTL=60   # seconds, handshake token lifetime
 AUTH_SSO_PROVIDER_URL=      # consumer side: base URL of the Provider
+AUTH_SSO_PROVIDER_LOGIN_ROUTE=login # provider side: named route of its own human-facing login screen
 AUTH_SSO_ALLOWED_CONSUMERS= # provider side: comma-separated root domains allowlist
 AUTH_SSO_RBAC_ENABLED=false
 ```
@@ -447,6 +448,8 @@ For a root domain that isn't a subdomain of the Provider (so the wildcard cookie
 Flow: `GET v1/sso/redirect` (consumer) → redirect to the Provider's login page with an encrypted `sso_handshake` token → after normal login, `GET v1/sso/handshake` (provider, authenticated) validates the consumer against `AUTH_SSO_ALLOWED_CONSUMERS`, issues fresh tokens, and redirects back → the consumer's own `laravel-auth.sso.callback` route decrypts the response and sets its own local refresh-token cookie.
 
 The Provider never assumes a path or prefix (e.g. `api/`) for the consumer's callback: the consumer resolves its own `route('laravel-auth.sso.callback', absolute: true)` and sends that full URL inside the encrypted payload. The Provider validates that the callback URL's host actually matches the allowlisted consumer domain before redirecting, so a tampered/foreign callback host is rejected.
+
+The "Provider's login page" in that flow is **your app's own human-facing login screen** (the one with a form, not the package's JSON `POST` login endpoint — redirecting a browser there would 405). `AUTH_SSO_PROVIDER_LOGIN_ROUTE` defaults to `login`, the name Laravel itself uses by convention (`Auth::routes()`/Breeze/Fortify, and the name the `auth` middleware redirects to when there's no session) — so this works out of the box in a typical Laravel app with zero config. If your login route is named anything else (e.g. it lives inside a `Route::name('auth.')` group, making the real name `auth.login`), set `AUTH_SSO_PROVIDER_LOGIN_ROUTE` to that real name — don't rename your own route just to match the package's default.
 
 These routes are only registered when `AUTH_SSO_MODE` is `provider` or `consumer`.
 

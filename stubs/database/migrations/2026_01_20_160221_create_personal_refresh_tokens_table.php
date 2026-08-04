@@ -13,7 +13,10 @@ return new class extends Migration
     {
         Schema::create('personal_refresh_tokens', function (Blueprint $table) {
             $table->id();
-            $table->morphs('tokenable'); 
+            // uuidMorphs, no morphs: los modelos autenticables de la red
+            // Clousis usan uuid como clave primaria. Si tu app usa ids
+            // autoincrementales, cambiá esto a morphs() antes de migrar.
+            $table->uuidMorphs('tokenable');
             $table->string('token', 64)->unique();
             $table->unsignedBigInteger('access_token_id')->nullable();
             $table->timestamp('expires_at');

@@ -19,4 +19,14 @@ class SsoTestCase extends TestCase
         $app['config']->set('laravel-auth.sso.provider_url', 'https://provider.example.test');
         $app['config']->set('laravel-auth.sso.allowed_consumers', ['consumer.example.test']);
     }
+
+    /**
+     * `provider_login_route` por defecto resuelve 'login' — igual que en
+     * cualquier app Laravel real (Auth::routes()/Breeze/Fortify), así que la
+     * app de test necesita esa ruta nombrada para poder resolverla.
+     */
+    protected function defineRoutes($router): void
+    {
+        $router->get('/login', fn () => 'login form')->name('login');
+    }
 }
