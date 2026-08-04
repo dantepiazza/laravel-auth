@@ -79,9 +79,17 @@ return [
     |   - provider: emite tokens de forma centralizada.
     |   - consumer: redirige/valida contra el provider.
     |
-    | default_type: account_type usado para resolver route('laravel-auth.login',
-    |   ['type' => ...]) cuando el paquete necesita construir una URL de login
-    |   sin depender de un dominio o path hardcodeado.
+    | default_type: account_type usado para resolver la URL de login cuando el
+    |   paquete necesita construirla sin depender de un dominio hardcodeado.
+    |
+    | provider_login_route: nombre de ruta HTML (GET, con formulario) que el
+    |   Provider expone para el login humano — la que ve el usuario en el
+    |   navegador durante el handshake cross-domain (Fase 4). Es un dato del
+    |   host app, no del paquete: el paquete solo trae 'laravel-auth.login',
+    |   que es la ruta API (POST, JSON) usada por AuthController — redirigir
+    |   un navegador ahí devuelve 405. Si el host no define esta clave, el
+    |   handshake cae de vuelta a 'laravel-auth.login' (roto para uso real,
+    |   pero no rompe la resolución de la URL en apps que no usan handshake).
     |
     | secret: secret dedicado para el handshake cross-domain (Fase 4). No debe
     |   reutilizar APP_KEY: permite rotarlo de forma independiente y evita
@@ -94,6 +102,8 @@ return [
         'mode' => env('AUTH_SSO_MODE'),
 
         'default_type' => env('AUTH_SSO_DEFAULT_TYPE', 'users'),
+
+        'provider_login_route' => env('AUTH_SSO_PROVIDER_LOGIN_ROUTE', 'laravel-auth.login'),
 
         'secret' => env('AUTH_SSO_SECRET'),
 

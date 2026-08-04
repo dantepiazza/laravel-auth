@@ -42,7 +42,8 @@ class SsoHandshakeService
             'callback' => route('laravel-auth.sso.callback', absolute: true),
         ]);
 
-        $loginPath = route('laravel-auth.login', ['type' => config('laravel-auth.sso.default_type')], false);
+        $loginRoute = config('laravel-auth.sso.provider_login_route', 'laravel-auth.login');
+        $loginPath = route($loginRoute, ['type' => config('laravel-auth.sso.default_type')], false);
 
         return $providerUrl.'/'.ltrim($loginPath, '/').'?sso_handshake='.urlencode($token);
     }

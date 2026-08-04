@@ -61,6 +61,18 @@ describe('SsoHandshakeService', function () {
         expect($url)->toContain('sso_handshake=');
     });
 
+    it('usa provider_login_route en vez de la ruta API cuando el host la configura', function () {
+        config(['laravel-auth.sso.provider_login_route' => 'laravel-auth.sso.callback']);
+
+        $service = app(SsoHandshakeService::class);
+
+        $expectedPath = route('laravel-auth.sso.callback', ['type' => config('laravel-auth.sso.default_type')], false);
+
+        $url = $service->buildProviderRedirectUrl('consumer.example.test', '/dashboard');
+
+        expect($url)->toContain(ltrim($expectedPath, '/'));
+    });
+
     it('valida el dominio consumidor contra la allowlist', function () {
         $encryptor = app(SsoHandshakeEncryptor::class);
         $service   = app(SsoHandshakeService::class);
