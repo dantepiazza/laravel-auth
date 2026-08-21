@@ -31,6 +31,13 @@ class AuthServiceProvider extends ServiceProvider
         // Las rutas se cargan después de registrar el alias
         $this->loadRoutesFrom(__DIR__ . '/../routes/auth.php');
 
+        // Pantallas Blade (login/registro/verificación/recuperar contraseña),
+        // opt-in vía laravel-auth.web.enabled (default false) — no afecta a
+        // quien no las active.
+        if (config('laravel-auth.web.enabled')) {
+            $this->loadRoutesFrom(__DIR__ . '/../routes/web.php');
+        }
+
         if ($this->app->runningInConsole()) {
             $this->publishes([
                 __DIR__ . '/../stubs/database/migrations/' => database_path('migrations'),
@@ -47,6 +54,16 @@ class AuthServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__ . '/../resources/views' => resource_path('views/vendor/laravel-auth'),
             ], 'laravel-auth-views');
+
+            // Tag granular: solo las pantallas Blade de auth (layout + vistas),
+            // para quien quiera personalizarlas sin tocar las vistas de emails.
+            $this->publishes([
+                __DIR__ . '/../resources/views/auth' => resource_path('views/vendor/laravel-auth/auth'),
+            ], 'laravel-auth-web-views');
+
+            $this->publishes([
+                __DIR__ . '/../routes/web.php' => base_path('/routes/auth-web.php'),
+            ], 'laravel-auth-web-routes');
         }
     }
 }
