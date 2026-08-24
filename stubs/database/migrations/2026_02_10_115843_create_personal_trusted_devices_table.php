@@ -13,7 +13,10 @@ return new class extends Migration
     {
         Schema::create('personal_trusted_devices', function (Blueprint $table) {
             $table->id();
-            $table->morphs('verifyable');
+            // uuidMorphs, no morphs: los modelos autenticables de la red
+            // Clousis usan uuid como clave primaria. Si tu app usa ids
+            // autoincrementales, cambiá esto a morphs() antes de migrar.
+            $table->uuidMorphs('verifyable');
             $table->string('fingerprint', 64);
             $table->json('device_info')->nullable();
             $table->boolean('is_trusted')->default(false);

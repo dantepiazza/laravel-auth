@@ -13,7 +13,10 @@ return new class extends Migration
     {
         Schema::create('personal_verification_codes', function (Blueprint $table) {
             $table->id();
-            $table->morphs('verifiable');
+            // uuidMorphs, no morphs: los modelos autenticables de la red
+            // Clousis usan uuid como clave primaria. Si tu app usa ids
+            // autoincrementales, cambiá esto a morphs() antes de migrar.
+            $table->uuidMorphs('verifiable');
             $table->string('code');
             $table->string('type');
             $table->integer('attempts')->default(0);
