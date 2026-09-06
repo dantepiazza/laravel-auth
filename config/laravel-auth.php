@@ -150,6 +150,15 @@ return [
 
         'allowed_consumers' => array_filter(explode(',', env('AUTH_SSO_ALLOWED_CONSUMERS', ''))),
 
+        /*
+        | error_redirect_route: nombre de ruta a la que SsoHandshakeController
+        | redirige (con session('error', ...)) cuando el handshake falla
+        | (token expirado/inválido, dominio no autorizado). Null = redirige a
+        | '/'. Poner acá la ruta del login humano de esta app — mismo
+        | mecanismo de mensaje que un login fallido normal (->with('error')).
+        */
+        'error_redirect_route' => env('AUTH_SSO_ERROR_REDIRECT_ROUTE'),
+
         'rbac' => [
             'enabled' => env('AUTH_SSO_RBAC_ENABLED', false),
         ],

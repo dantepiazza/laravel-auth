@@ -33,7 +33,7 @@ class SsoHandshakeService
         $providerUrl = rtrim((string) config('laravel-auth.sso.provider_url'), '/');
 
         if (empty($providerUrl)) {
-            throw new ResponseException('sso_provider_url_missing', 'AUTH_SSO_PROVIDER_URL no está configurado.', 500);
+            throw new ResponseException('AUTH_SSO_PROVIDER_URL no está configurado.', 'sso_provider_url_missing', 500);
         }
 
         $token = $this->encryptor->encrypt([
@@ -49,7 +49,16 @@ class SsoHandshakeService
         $loginRoute = config('laravel-auth.sso.provider_login_route', 'login');
         $loginPath = route($loginRoute, ['type' => config('laravel-auth.sso.default_type')], false);
 
-        return $providerUrl.'/'.ltrim($loginPath, '/').'?sso_handshake='.urlencode($token);
+        // Bug real encontrado 2026-08-28: si la ruta de login del Provider
+        // no tiene un segmento {type} en su URI (ej. login único sin
+        // multi-tipo), route() cuelga 'type' como querystring en vez de
+        // path — $loginPath queda con su propio '?type=...' y el '?sso_handshake='
+        // de acá abajo lo duplicaba, armando una URL con dos '?' inválida.
+        // Mismo criterio que ya usa completeHandshake() para el separador
+        // del callback.
+        $separator = str_contains($loginPath, '?') ? '&' : '?';
+
+        return $providerUrl.'/'.ltrim($loginPath, '/').$separator.'sso_handshake='.urlencode($token);
     }
 
     /**
@@ -65,13 +74,13 @@ class SsoHandshakeService
         $allowed = config('laravel-auth.sso.allowed_consumers', []);
 
         if (!in_array($payload['consumer'] ?? null, $allowed, true)) {
-            throw new ResponseException('sso_consumer_not_allowed', 'El dominio consumidor no está autorizado.', 403);
+            throw new ResponseException('El dominio consumidor no está autorizado.', 'sso_consumer_not_allowed', 403);
         }
 
         $callbackHost = parse_url($payload['callback'] ?? '', PHP_URL_HOST);
 
         if (!$callbackHost || $callbackHost !== $payload['consumer']) {
-            throw new ResponseException('sso_callback_mismatch', 'La URL de callback no corresponde al dominio consumidor.', 403);
+            throw new ResponseException('La URL de callback no corresponde al dominio consumidor.', 'sso_callback_mismatch', 403);
         }
 
         return $payload;
@@ -98,7 +107,7 @@ class SsoHandshakeService
         $payload = $this->encryptor->decrypt($token, (int) config('laravel-auth.sso.handshake_ttl', 60));
 
         if (!isset($payload['access_token'], $payload['refresh_token'])) {
-            throw new ResponseException('sso_handshake_invalid', 'Token de enlace inválido.', 401);
+            throw new ResponseException('Token de enlace inválido.', 'sso_handshake_invalid', 401);
         }
 
         return $payload;

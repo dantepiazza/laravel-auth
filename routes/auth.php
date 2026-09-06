@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Auth\Middleware\Authenticate;
 use DantePiazza\LaravelAuth\Http\Controllers\AuthController;
 use DantePiazza\LaravelAuth\Http\Controllers\SsoHandshakeController;
 
@@ -42,10 +43,40 @@ Route::prefix('v1/{type}')->group(function () {
 });
 
 // Handshake cross-domain (Fase 4) — solo se registra si el modo SSO está activo.
+//
+// Bug real encontrado 2026-08-28: este archivo se carga vía loadRoutesFrom()
+// en AuthServiceProvider::boot(), FUERA de routes/web.php — nunca recibe el
+// grupo de middleware 'web' (StartSession, etc.) que Laravel aplica
+// automáticamente solo a las rutas registradas ahí. Sin StartSession,
+// $request->session() nunca lee la cookie — daba igual que la sesión 'web'
+// estuviera perfecta del lado del login: completeHandshake() la veía
+// siempre vacía y tiraba 401 "Token inválido, expirado o inexistente."
+// Forzar 'web' acá es necesario para que Auth::guard('web') funcione.
 if (in_array(config('laravel-auth.sso.mode'), ['provider', 'consumer'], true)) {
-    Route::prefix('v1/sso')->group(function () {
+    Route::middleware('web')->prefix('v1/sso')->group(function () {
         Route::get('redirect', [SsoHandshakeController::class, 'redirectToProvider'])->name('laravel-auth.sso.redirect');
-        Route::get('handshake', [SsoHandshakeController::class, 'completeHandshake'])->middleware('auth:sanctum')->name('laravel-auth.sso.handshake');
+
+        // Bug real encontrado 2026-08-28: 'auth:sanctum' nunca autenticaba
+        // acá. Este archivo se carga vía loadRoutesFrom() en
+        // AuthServiceProvider::boot(), FUERA del grupo 'api' de la app host
+        // — nunca pasa por EnsureFrontendRequestsAreStateful (eso es lo que
+        // hace que Sanctum reconozca la cookie de sesión en vez de exigir un
+        // Bearer token). completeHandshake() se llama JUSTO después de un
+        // login humano por sesión (SessionController::login() -> guard
+        // 'web'), no de un cliente API — corresponde autenticar con ese
+        // guard de sesión, no con Sanctum.
+        //
+        // Se usa Authenticate::using() (la clase real de Laravel, resuelta
+        // directo — sin pasar por el alias de ruta 'auth') a propósito: el
+        // alias 'auth' es de cada app host y puede estar sobreescrito con
+        // lógica propia (en el Gateway, 'auth' ignora el guard que se le
+        // pasa y solo intenta Sanctum/Bearer/JWT interno — nunca la sesión
+        // 'web', abortando 401 sin mensaje). Referenciar la clase evita
+        // depender de qué haya hecho cada consumidor con su alias 'auth'.
+        Route::get('handshake', [SsoHandshakeController::class, 'completeHandshake'])
+            ->middleware(Authenticate::using(config('laravel-auth.web.default_guard', 'web')))
+            ->name('laravel-auth.sso.handshake');
+
         Route::get('callback', [SsoHandshakeController::class, 'receiveHandshake'])->name('laravel-auth.sso.callback');
     });
 }

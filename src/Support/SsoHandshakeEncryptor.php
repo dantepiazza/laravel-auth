@@ -25,7 +25,7 @@ class SsoHandshakeEncryptor
         $secret = config('laravel-auth.sso.secret');
 
         if (empty($secret)) {
-            throw new ResponseException('sso_secret_missing', 'El SSO no tiene configurado AUTH_SSO_SECRET.', 500);
+            throw new ResponseException('El SSO no tiene configurado AUTH_SSO_SECRET.', 'sso_secret_missing', 500);
         }
 
         $key = strlen($secret) >= 32 ? substr($secret, 0, 32) : str_pad($secret, 32, '0');
@@ -48,17 +48,17 @@ class SsoHandshakeEncryptor
         try {
             $payload = json_decode($this->encrypter->decrypt($token), true);
         } catch (DecryptException $e) {
-            throw new ResponseException('sso_handshake_invalid', 'Token de enlace inválido.', 401);
+            throw new ResponseException('Token de enlace inválido.', 'sso_handshake_invalid', 401);
         }
 
         if (!is_array($payload) || !isset($payload['issued_at'])) {
-            throw new ResponseException('sso_handshake_invalid', 'Token de enlace inválido.', 401);
+            throw new ResponseException('Token de enlace inválido.', 'sso_handshake_invalid', 401);
         }
 
         $ttl = $ttlSeconds ?? (int) config('laravel-auth.sso.handshake_ttl', 60);
 
         if (now()->timestamp - (int) $payload['issued_at'] > $ttl) {
-            throw new ResponseException('sso_handshake_expired', 'El enlace de sesión expiró, intentá de nuevo.', 401);
+            throw new ResponseException('El enlace de sesión expiró, intentá de nuevo.', 'sso_handshake_expired', 401);
         }
 
         return $payload;

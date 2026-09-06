@@ -40,7 +40,7 @@ class AuthService
         $model = auth($this->config['guard'])->user();
 
         if (!$model) {
-            throw new ResponseException('auth_unauthorized', 'No hay una sesión activa.', 401);
+            throw new ResponseException('No hay una sesión activa.', 'auth_unauthorized', 401);
         }
 
         return $this->resolvedInstance = $model;
@@ -202,7 +202,7 @@ class AuthService
     public function revokeSession(int $refreshTokenId): void
     {
         if (!$this->resolve()->revokeRefreshToken($refreshTokenId)) {
-            throw new ResponseException('auth_session_not_found', 'La sesión indicada no existe.', 404);
+            throw new ResponseException('La sesión indicada no existe.', 'auth_session_not_found', 404);
         }
     }
 
@@ -263,7 +263,7 @@ class AuthService
         $model = $this->modelClass::where($this->config['identity'], $identity)->firstOrFail();
 
         if (method_exists($model, 'hasVerifiedEmail') ? $model->hasVerifiedEmail() : !empty($model->email_verified_at)) {
-            throw new ResponseException('auth_email_already_verified', 'El email ya se encuentra verificado.', 422);
+            throw new ResponseException('El email ya se encuentra verificado.', 'auth_email_already_verified', 422);
         }
 
         if (method_exists($model, 'sendEmailVerificationCode')) {
