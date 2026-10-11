@@ -2,6 +2,7 @@
 
 use DantePiazza\LaravelAuth\Tests\TestCase;
 use DantePiazza\LaravelAuth\Tests\TestUser;
+use DantePiazza\LaravelAuth\Models\PersonalRefreshToken;
 
 uses(TestCase::class);
 
@@ -18,6 +19,25 @@ describe('logout', function () {
 
         // El access token debe haber sido eliminado
         expect($user->tokens()->count())->toBe(0);
+    });
+
+    it('también elimina el refresh token asociado, no solo el access token', function () {
+        // Bug real encontrado 2026-09-13: currentRefreshToken() usaba un
+        // hasOne mal armado que nunca matcheaba nada (comparaba el UUID/id
+        // del usuario contra la columna access_token_id), así que
+        // removeCurrentSession() nunca borraba de verdad la fila de
+        // personal_refresh_tokens — solo el access token, en silencio.
+        $user        = $this->createUser();
+        $accessToken = $user->createToken('test');
+        $user->createRefreshToken($accessToken->accessToken->id);
+
+        expect(PersonalRefreshToken::where('access_token_id', $accessToken->accessToken->id)->exists())->toBeTrue();
+
+        $this->withToken($accessToken->plainTextToken)
+            ->postJson('/v1/users/auth/logout')
+            ->assertStatus(200);
+
+        expect(PersonalRefreshToken::where('access_token_id', $accessToken->accessToken->id)->exists())->toBeFalse();
     });
 
     it('falla sin token de autenticación', function () {

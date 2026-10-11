@@ -85,6 +85,7 @@ class AuthService
             'resource'      => new $this -> config['resource']($model),
             'cookie'        => $this->makeRefreshCookie($refreshToken),
             ...$this->withRbacPayload($model),
+            ...$this->withWorkspacePayload($model),
         ];
     }
 
@@ -158,6 +159,31 @@ class AuthService
         return $rbac ? ['rbac' => $rbac] : [];
     }
 
+    /**
+     * Igual criterio que withRbacPayload(): extensión aditiva, solo si el
+     * modo está habilitado y el modelo implementa las convenciones — el
+     * paquete no interpreta "workspace" de ninguna forma, sólo reenvía lo
+     * que el modelo devuelva tal cual.
+     */
+    protected function withWorkspacePayload($model): array
+    {
+        if (!config('laravel-auth.sso.workspace.enabled') || !$model) {
+            return [];
+        }
+
+        $workspace = [];
+
+        if (method_exists($model, 'getSsoActiveWorkspace')) {
+            $workspace['workspace'] = $model->getSsoActiveWorkspace();
+        }
+
+        if (method_exists($model, 'getSsoWorkspaces')) {
+            $workspace['workspaces'] = $model->getSsoWorkspaces();
+        }
+
+        return $workspace;
+    }
+
     public function refresh(string $token): string
     {
         if (!$token) {
@@ -185,6 +211,7 @@ class AuthService
             'model'    => $model,
             'resource' => new $this -> config['resource']($model),
             ...$this->withRbacPayload($model),
+            ...$this->withWorkspacePayload($model),
         ];
     }
 
@@ -341,6 +368,7 @@ class AuthService
             'resource'      => new $this->config['resource']($model),
             'cookie'        => $this->makeRefreshCookie($refreshToken),
             ...$this->withRbacPayload($model),
+            ...$this->withWorkspacePayload($model),
         ];
     }
 }

@@ -31,23 +31,32 @@ trait HasRefreshTokens
         return $refreshToken;
     }
 
-    public function currentRefreshToken()
+    /**
+     * Bug real encontrado 2026-09-13: esto usaba hasOne(PersonalRefreshToken::class,
+     * 'access_token_id', 'id'), que arma la relación constreñida por
+     * `access_token_id = $this->id` — pero $this es el USUARIO (UUID), no el
+     * access token. Esa comparación (string UUID contra la columna entera
+     * access_token_id) nunca puede matchear nada, así que el ->where(...)
+     * adicional era irrelevante: la query de base ya devolvía cero filas
+     * siempre. removeCurrentSession() (usado por logout) nunca borraba
+     * realmente el refresh token — solo el access token, en silencio, sin
+     * que ningún test lo notara (el test de logout solo verifica que
+     * tokens()->count() sea 0, nunca chequeó personal_refresh_tokens). No es
+     * una relación real de Eloquent (no hay FK entre User y
+     * PersonalRefreshToken vía access_token_id) — es una búsqueda simple.
+     */
+    public function currentRefreshToken(): ?PersonalRefreshToken
     {
         $token = $this->currentAccessToken();
-        
+
         if (!$token) return null;
 
-        return $this->hasOne(PersonalRefreshToken::class, 'access_token_id', 'id')
-                    ->where('access_token_id', $token->id);
+        return PersonalRefreshToken::where('access_token_id', $token->id)->first();
     }
 
     public function removeCurrentSession()
     {
-        $refreshToken = $this->currentRefreshToken();
-        
-        if ($refreshToken) {
-            $refreshToken->delete();
-        }
+        $this->currentRefreshToken()?->delete();
 
         $this->currentAccessToken()?->delete();
     }

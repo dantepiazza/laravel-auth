@@ -49,6 +49,8 @@ class AuthController
                 'refresh_token' => $data['refresh_token'],
                 'model'         => $data['resource'],
                 'rbac'          => $data['rbac'] ?? null,
+                'workspace'     => $data['workspace'] ?? null,
+                'workspaces'    => $data['workspaces'] ?? null,
             ], fn ($value) => $value !== null), 'Sesión iniciada correctamente.')
             ->withCookie($data['cookie'])
             ->response();
@@ -71,6 +73,8 @@ class AuthController
                 'authenticated' => true,
                 'model'         => $data['resource'],
                 'rbac'          => $data['rbac'] ?? null,
+                'workspace'     => $data['workspace'] ?? null,
+                'workspaces'    => $data['workspaces'] ?? null,
             ], fn ($value) => $value !== null), 'Sesión activa.')
             ->response();
     }
@@ -98,6 +102,8 @@ class AuthController
                 'refresh_token' => $data['refresh_token'],
                 'model'         => $data['resource'],
                 'rbac'          => $data['rbac'] ?? null,
+                'workspace'     => $data['workspace'] ?? null,
+                'workspaces'    => $data['workspaces'] ?? null,
             ], fn ($value) => $value !== null), 'Cuenta creada correctamente.')
             : $this->api->created([
                 'model' => $data['resource'],

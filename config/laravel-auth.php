@@ -162,5 +162,20 @@ return [
         'rbac' => [
             'enabled' => env('AUTH_SSO_RBAC_ENABLED', false),
         ],
+
+        /*
+        | Igual que 'rbac' arriba: extensión aditiva y opcional del payload de
+        | login/current, gateada por convención de métodos en el modelo en vez
+        | de que el paquete conozca ningún concepto de negocio. Si 'enabled'
+        | y el modelo implementa getSsoActiveWorkspace()/getSsoWorkspaces(),
+        | el payload suma 'workspace'/'workspaces'. Pensado para apps
+        | multi-tenant donde el usuario opera dentro de un "espacio de
+        | trabajo" activo (el nombre y la forma de esas 2 claves son elección
+        | libre de quien las implemente — el paquete solo las reenvía tal
+        | cual, sin interpretarlas).
+        */
+        'workspace' => [
+            'enabled' => env('AUTH_SSO_WORKSPACE_ENABLED', false),
+        ],
     ],
 ];
