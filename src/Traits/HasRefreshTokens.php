@@ -49,7 +49,9 @@ trait HasRefreshTokens
     {
         $token = $this->currentAccessToken();
 
-        if (!$token) return null;
+        // Sesión de cookie/stateful (guard 'web'): Sanctum devuelve un
+        // TransientToken sin id ni fila en BD, no hay refresh token que buscar.
+        if (!$token instanceof \Laravel\Sanctum\PersonalAccessToken) return null;
 
         return PersonalRefreshToken::where('access_token_id', $token->id)->first();
     }
@@ -58,7 +60,11 @@ trait HasRefreshTokens
     {
         $this->currentRefreshToken()?->delete();
 
-        $this->currentAccessToken()?->delete();
+        $token = $this->currentAccessToken();
+
+        if ($token instanceof \Laravel\Sanctum\PersonalAccessToken) {
+            $token->delete();
+        }
     }
 
     public function rotateAccessToken()

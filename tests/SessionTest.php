@@ -40,6 +40,17 @@ describe('logout', function () {
         expect(PersonalRefreshToken::where('access_token_id', $accessToken->accessToken->id)->exists())->toBeFalse();
     });
 
+    it('no rompe con una sesión de cookie (TransientToken, sin access token en BD)', function () {
+        // Logout web del Provider: el usuario viene del guard 'web' y Sanctum
+        // devuelve un TransientToken (sin id) en vez de un PersonalAccessToken.
+        $user = $this->createUser();
+        $user->withAccessToken(new \Laravel\Sanctum\TransientToken);
+
+        expect($user->currentRefreshToken())->toBeNull();
+
+        $user->removeCurrentSession();
+    });
+
     it('falla sin token de autenticación', function () {
         $response = $this->postJson('/v1/users/auth/logout');
 
