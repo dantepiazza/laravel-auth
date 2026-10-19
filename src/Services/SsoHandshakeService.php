@@ -40,6 +40,7 @@ class SsoHandshakeService
             'consumer' => $consumerDomain,
             'redirect' => $redirectPath,
             'callback' => route('laravel-auth.sso.callback', absolute: true),
+            'app'      => config('laravel-auth.sso.app'),
         ]);
 
         // El default real vive en config/laravel-auth.php ('login', la
@@ -58,7 +59,14 @@ class SsoHandshakeService
         // del callback.
         $separator = str_contains($loginPath, '?') ? '&' : '?';
 
-        return $providerUrl.'/'.ltrim($loginPath, '/').$separator.'sso_handshake='.urlencode($token);
+        $url = $providerUrl.'/'.ltrim($loginPath, '/').$separator.'sso_handshake='.urlencode($token);
+
+        // El Provider usa `app` para mostrar el logo de la app que pidió el login.
+        if ($app = config('laravel-auth.sso.app')) {
+            $url .= '&app='.urlencode((string) $app);
+        }
+
+        return $url;
     }
 
     /**

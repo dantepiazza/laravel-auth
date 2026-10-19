@@ -19,7 +19,7 @@ class VerifyEmail
         $user = Auth::user();
 
         if ($user && is_null($user->email_verified_at)) {
-            return ApiResponse::forbidden(message: 'Debés verificar tu dirección de correo electrónico antes de continuar.')->response();
+            return ApiResponse::forbidden(data: ['reason' => 'email_unverified'], message: 'Debés verificar tu dirección de correo electrónico antes de continuar.')->response();
         }
 
         return $next($request);

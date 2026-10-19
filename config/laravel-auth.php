@@ -148,6 +148,23 @@ return [
 
         'provider_url' => env('AUTH_SSO_PROVIDER_URL'),
 
+        // Consumer: módulo de la app (el `module` de la App registrada en el
+        // Provider). Viaja como `?app=` a la pantalla de login del Provider
+        // para que muestre el logo/branding de esa app.
+        'app' => env('AUTH_SSO_APP'),
+
+        // Consumer: dominio con el que se identifica ante el Provider (el que
+        // está en su `allowed_consumers`). Acepta host o URL; si falta se usa
+        // el host de APP_URL. Hace falta cuando APP_URL no es el dominio del
+        // panel (ej. APP_URL=hostbi.clousis.net, panel en panel.hostbi.net).
+        'consumer_domain' => env('AUTH_SSO_CONSUMER_DOMAIN'),
+
+        // Provider: nombre de la ruta (GET) de verificación de email a la que
+        // se manda a un usuario sin verificar en vez de devolverlo al Consumer
+        // (que recibiría 403 en auth/current y quedaría en loop). Recibe
+        // `identity`, `type`, `sso_handshake` y `app`. Null = no desvía.
+        'unverified_route' => env('AUTH_SSO_UNVERIFIED_ROUTE'),
+
         'allowed_consumers' => array_filter(explode(',', env('AUTH_SSO_ALLOWED_CONSUMERS', ''))),
 
         /*

@@ -38,7 +38,11 @@ class SsoHandshakeController
         abort_unless(config('laravel-auth.sso.mode') === 'consumer', 404);
 
         try {
-            $consumerDomain = parse_url(config('app.url'), PHP_URL_HOST) ?? $request->getHost();
+            $configured     = (string) config('laravel-auth.sso.consumer_domain');
+            $consumerDomain = ($configured !== ''
+                    ? (parse_url($configured, PHP_URL_HOST) ?: $configured)
+                    : parse_url(config('app.url'), PHP_URL_HOST))
+                ?: $request->getHost();
             $redirectPath   = $request->query('redirect', '/');
 
             return redirect()->away(
@@ -61,6 +65,14 @@ class SsoHandshakeController
         try {
             $incoming = $this->handshake->validateIncomingRequest($request->query('sso_handshake', ''));
 
+            // Email sin verificar: volver al Consumer terminaría en 403 en
+            // auth/current (loop de login). Se manda a la pantalla de
+            // verificación del Provider, conservando el handshake para
+            // retomarlo cuando verifique.
+            if ($response = $this->redirectIfUnverified($request, $incoming)) {
+                return $response;
+            }
+
             $accessToken = $request->user()->createToken(
                 'access_token',
                 ['*'],
@@ -79,6 +91,28 @@ class SsoHandshakeController
         } catch (ResponseException $e) {
             return $this->errorRedirect($e);
         }
+    }
+
+    protected function redirectIfUnverified(Request $request, array $incoming): ?RedirectResponse
+    {
+        $route = config('laravel-auth.sso.unverified_route');
+        $user  = $request->user();
+
+        if (! $route
+            || ! config('laravel-auth.email_verification.enabled')
+            || ! config('laravel-auth.email_verification.blocking')
+            || ! $user
+            || ! is_null($user->email_verified_at)
+            || ! \Illuminate\Support\Facades\Route::has($route)) {
+            return null;
+        }
+
+        return redirect()->route($route, array_filter([
+            'identity'      => $user->email ?? null,
+            'type'          => config('laravel-auth.sso.default_type'),
+            'sso_handshake' => $request->query('sso_handshake'),
+            'app'           => $incoming['app'] ?? null,
+        ]));
     }
 
     /**
