@@ -12,3 +12,7 @@ Al cerrar la feature de SSO se corrió `vendor/bin/pest` por primera vez y apare
 4. **`resendVerificationCode()` no fallaba si el email ya estaba verificado** — faltaba la validación de negocio. Fix: se agregó un chequeo de `hasVerifiedEmail()`/`email_verified_at` que lanza `ResponseException` (422) si ya está verificado.
 
 Ver también el `README.md` — sección "SSO (optional, opt-in)" para la feature que motivó esta revisión, y la nota sobre `register_fields` cerca de la config de `account_types`.
+
+## Resuelto (2026-10-22, v1.6.0)
+
+**`auth.verify-email` dejaba pasar al usuario nulo** — `VerifyEmail` hacía `if ($user && ...)`, así que sin usuario autenticado (p. ej. un guard custom que acepta un JWT interno y no resuelve `Auth::user()`) con `blocking=true` la request pasaba. Fix: fail-closed, sin usuario responde 401 (`reason: unauthenticated`). Las rutas del paquete ya van detrás de `auth:sanctum`, no cambia nada para ellas. Tests en `tests/EmailVerificationTest.php`.

@@ -87,4 +87,36 @@ describe('email verification', function () {
 
         $response->assertStatus(200);
     });
+
+    it('rechaza con 401 si no hay usuario autenticado y blocking está activo', function () {
+        config(['laravel-auth.email_verification.blocking' => true]);
+        \Illuminate\Support\Facades\Auth::forgetUser();
+
+        $response = (new \DantePiazza\LaravelAuth\Http\Middleware\VerifyEmail())
+            ->handle(\Illuminate\Http\Request::create('/x'), fn () => response('ok'));
+
+        expect($response->getStatusCode())->toBe(401)
+            ->and(json_decode($response->getContent(), true)['data']['reason'] ?? null)->toBe('unauthenticated');
+    });
+
+    it('deja pasar sin usuario si blocking está desactivado', function () {
+        config(['laravel-auth.email_verification.blocking' => false]);
+        \Illuminate\Support\Facades\Auth::forgetUser();
+
+        $response = (new \DantePiazza\LaravelAuth\Http\Middleware\VerifyEmail())
+            ->handle(\Illuminate\Http\Request::create('/x'), fn () => response('ok'));
+
+        expect($response->getStatusCode())->toBe(200);
+    });
+
+    it('responde 403 con reason email_unverified para un usuario sin verificar', function () {
+        config(['laravel-auth.email_verification.blocking' => true]);
+
+        $user  = $this->createUser(['email_verified_at' => null]);
+        $token = $user->createToken('test')->plainTextToken;
+
+        $this->withToken($token)->getJson('/v1/users/auth/current')
+            ->assertStatus(403)
+            ->assertJsonPath('data.reason', 'email_unverified');
+    });
 });

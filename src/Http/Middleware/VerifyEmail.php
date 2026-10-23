@@ -18,7 +18,13 @@ class VerifyEmail
 
         $user = Auth::user();
 
-        if ($user && is_null($user->email_verified_at)) {
+        // Fail-closed: sin usuario autenticado (middleware sin `auth` delante, o un guard que
+        // no resuelve usuario) no se deja pasar. Antes devolvía $next y abría un hueco.
+        if (!$user) {
+            return ApiResponse::unauthorized(data: ['reason' => 'unauthenticated'], message: 'Debés iniciar sesión para continuar.')->response();
+        }
+
+        if (is_null($user->email_verified_at)) {
             return ApiResponse::forbidden(data: ['reason' => 'email_unverified'], message: 'Debés verificar tu dirección de correo electrónico antes de continuar.')->response();
         }
 

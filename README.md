@@ -267,6 +267,8 @@ When `blocking` is `true`, the `auth.verify-email` middleware is applied automat
 Route::middleware(['auth:sanctum', 'auth.verify-email'])->group(...)
 ```
 
+The middleware is **fail-closed** (since v1.6.0): with `blocking` on, a request with no authenticated user gets `401` (`data.reason = unauthenticated`) instead of passing through, and an unverified user gets `403` (`data.reason = email_unverified`). With `blocking` off it is a no-op. Always put an authentication middleware before it.
+
 ---
 
 ## Model hooks
